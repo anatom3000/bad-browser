@@ -1,15 +1,20 @@
 from html.parser import HTMLParser
+from pprint import pprint as pp
+
+from reprlib import recursive_repr
 
 def get(data, indexes):
     for i in indexes:
         data = data[i]
     return data
 
-class HtmlNode:
+class Node:
     def __init__(self, tag, attrs={}, data=[]):
         self.tag = tag
         self.attrs = attrs
         self.data = data
+
+        self.__name__ = self.__qualname__ = tag
 
     def add_data(self, data):
         self.data.append(data)
@@ -20,43 +25,48 @@ class HtmlNode:
     def __setitem__(self, index, value):
         self.data[index] = value
 
+    @recursive_repr()
     def __repr__(self):
         txt = f"<{self.tag}"
-        print(txt)
         for k, v in self.attrs.items():
             txt += f" {k}={repr(v)}"
-            print(txt)
         txt += '>' + '\n'
-        print(txt)
         for d in self.data:
-            txt += '\t'+repr(d)+'\n'
-            print(txt)
+            txt += "\n".join(map(lambda x: '\t'+x, repr(d).split("\n")))+'\n'
         txt += f"</{self.tag}>"
-        print(txt)
         return txt
+
+
+class RootNode(Node):
+    def __init__(self):
+        super().__init__("internal")
+    def add_data(self, data):
+        pass
 
 class HtmlCodeInterface(HTMLParser):
     def __init__(self):
         super().__init__()
         self.current_node_path = []
-        self.document = HtmlNode("html")
+        self.document = []
 
     def handle_starttag(self, tag, attrs):
         node = self.document
         for i in self.current_node_path:
-            print(f"n={node}")
-            print(f"ni={node[i]}")
             node = node[i]
-        node.add_data(HtmlNode(tag, dict(attrs)))
-        print(repr(self.document))
+        node.add_data(Node(tag, dict(attrs)))
+        self.current_node_path.append(0)
+
+        #print(f"Found {tag}")
 
 
     def handle_endtag(self, tag):
-        pass
+        #print(f"Closing {tag}")
+        self.current_node_path = self.current_node_path[:-1]
+        tryself.current_node_path[-1] += 1
 
     def handle_data(self, data):
+        #print(data)
         pass
-
 
 test_page = """
 <html>
@@ -69,5 +79,10 @@ test_page = """
 
 test_parser = HtmlCodeInterface()
 #test_parser.feed(test_page)
+#print(repr(test_parser.document))
 
-print(repr(HtmlNode('div', {"class": "testclass", "an":"other"}, ["test essay"])))
+print(repr(
+    Node('div', {"class": "testclass", "an":"other"}, [
+        Node("a", {"href":"https://creepysite.com"}, ["dont go here"])
+    ])
+))
