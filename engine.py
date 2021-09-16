@@ -3,24 +3,22 @@ from pprint import pprint as pp
 
 from reprlib import recursive_repr
 
-def get(data, indexes):
-    for i in indexes:
-        data = data[i]
-    return data
-
 class Node:
     def __init__(self, tag, attrs={}, data=[]):
         self.tag = tag
         self.attrs = attrs
         self.data = data
 
-        self.__name__ = self.__qualname__ = tag
-
     def add_data(self, data):
         self.data.append(data)
 
     def __getitem__(self, index):
-        return self.data[index]
+        if len(self.data) == 0:
+            return self
+        if len(index) == 1:
+            print("wait what:", index)
+            return self.data[index[0]]
+        return self.data[index[0]][index[1:]]
 
     def __setitem__(self, index, value):
         self.data[index] = value
@@ -36,53 +34,67 @@ class Node:
         txt += f"</{self.tag}>"
         return txt
 
+class DataNode(Node):
+    def __init__(self, data):
+        super().__init__('', {}, [data])
 
-class RootNode(Node):
-    def __init__(self):
-        super().__init__("internal")
-    def add_data(self, data):
-        pass
+    def __getitem__(self, i):
+        return self
+
+    def __repr__(self):
+        return "".join(self.data)
 
 class HtmlCodeInterface(HTMLParser):
     def __init__(self):
         super().__init__()
-        self.current_node_path = []
-        self.document = []
+        self.current_node_path = [0]
+        self.document = DataNode("")
 
     def handle_starttag(self, tag, attrs):
-        node = self.document
-        for i in self.current_node_path:
-            node = node[i]
-        node.add_data(Node(tag, dict(attrs)))
+        if isinstance(self.document, DataNode):
+            self.document = Node(tag, dict(attrs))
+            return
+        self.document[self.current_node_path].add_data(Node(tag, dict(attrs)))
         self.current_node_path.append(0)
 
-        #print(f"Found {tag}")
+        print(f"Found {tag}")
 
 
     def handle_endtag(self, tag):
-        #print(f"Closing {tag}")
+        print(f"Closing {tag}")
         self.current_node_path = self.current_node_path[:-1]
-        tryself.current_node_path[-1] += 1
+        try:
+            self.current_node_path[-1] += 1
+        except IndexError:
+            self.current_node_path.append(0)
 
     def handle_data(self, data):
-        #print(data)
-        pass
+        print(data.strip().strip())
+        self.document[self.current_node_path].add_data(DataNode(data))
 
 test_page = """
-<html>
+<html lang="en">
     <head><title>Test Title</title></head>
     <body>
         <h1>I know, this a test !</h1>
     </body>
 </html>
 """
+test_page = """
+<html>
+    <body>
+        <h1>I know, this a test !</h1>
+    </body>
+</html>
+"""
+
 
 test_parser = HtmlCodeInterface()
-#test_parser.feed(test_page)
-#print(repr(test_parser.document))
+test_parser.feed(test_page)
+print(repr(test_parser.document))
 
-print(repr(
+"""print(repr(
     Node('div', {"class": "testclass", "an":"other"}, [
         Node("a", {"href":"https://creepysite.com"}, ["dont go here"])
     ])
-))
+))"""
